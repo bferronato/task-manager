@@ -55,27 +55,7 @@ router.get('/users/me', auth, async (request, response) => {
     response.send(request.user)
 })
 
-router.get('/users/:id', async (request, response) => {
-    const _id = request.params.id
-
-    try {
-        if (!_id.match(/[0-9a-fA-F]{24}$/)) {
-            return response.status(404).send({ error: 'User not found!' })
-        }
-
-        const user = await User.findById(_id)
-        if (!user) {
-            return response.status(404).send({ error: 'User not found!' })
-        }
-
-        response.send(user)
-
-    } catch (error) {
-        response.status(500).send(error)
-    }
-})
-
-router.patch('/users/:id', async (request, response) => {
+router.patch('/users/me', auth, async (request, response) => {
     const updates = Object.keys(request.body)
     const allowedUpdates = ['name', 'email', 'password', 'age']
     const isValidOperation = updates.every((update) => allowedUpdates.includes(update))
@@ -85,29 +65,19 @@ router.patch('/users/:id', async (request, response) => {
     }
 
     try {
-        const user = await User.findById(request.params.id)
-        updates.forEach((update) => user[update] = request.body[update])
-        await user.save()
+        updates.forEach((update) => request.user[update] = request.body[update])
+        await request.user.save()
 
-        if (!user) {
-            return response.status(404).send()
-        }
-
-        response.send(user)
+        response.send(request.user)
     } catch (error) {
         response.status(400).send()
     }
 })
 
-router.delete('/users/:id', async (request, response) => {
+router.delete('/users/me', auth, async (request, response) => {
     try {
-        const user = await User.findByIdAndDelete(request.params.id)
-
-        if (!user) {
-            return response.status(404).send()
-        }
-
-        response.send(user)
+        await request.user.remove()
+        response.send(request.user)
     } catch (error) {
         response.status(500).send(error)
     }
