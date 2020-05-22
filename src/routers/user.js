@@ -1,4 +1,6 @@
 const express = require('express')
+const multer = require('multer')
+// const sharp = require('sharp') // Aula 129. Auto-cropping and image formatting // npm i sharp@0.21.1
 const User = require('../models/user')
 const auth = require('../middleware/auth')
 const router = new express.Router()
@@ -80,6 +82,56 @@ router.delete('/users/me', auth, async (request, response) => {
         response.send(request.user)
     } catch (error) {
         response.status(500).send(error)
+    }
+})
+
+const upload = multer({
+    limits: {
+        fileSize: 1000000 // in bytes
+    },
+    fileFilter(request, file, callback) {
+
+        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+            return callback(new Error('Please upload a jpg, jpeg or png file.'))
+        }
+
+        callback(undefined, true)
+    }
+})
+router.post('/users/me/avatar', auth, upload.single('avatar'), async (request, response) => {
+    // const buffer = await sharp(request.file.buffer).resize({width: 250, height: 250}).png().toBuffer
+    // request.user.avatar = buffer
+
+    request.user.avatar = request.file.buffer
+    await request.user.save()
+    response.send()
+}, (error, request, response, next) => {
+    response.status(400).send({ error: error.message })
+})
+
+router.delete('/users/me/avatar', auth, async (request, response) => {
+    try {
+        request.user.avatar = undefined
+        await request.user.save()
+        response.send({ msg: "Avatar removed." })
+    } catch (error) {
+        response.status(500).send(error)
+    }
+})
+
+router.get('/users/:id/avatar', async (request, response) => {
+    try {
+        const user = await User.findById(request.params.id)
+
+        if (!user || !user.avatar) {
+            throw new Error({ error: 'Image not found' })
+        }
+
+        // response.set('Content-Type', 'image/png')
+        response.set('Content-Type', 'image/jpg')
+        response.send(user.avatar)
+    } catch (error) {
+        response.status(404).send()
     }
 })
 
